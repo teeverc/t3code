@@ -30,6 +30,7 @@ export interface ThreadStatusPill {
     | "Working"
     | "Connecting"
     | "Completed"
+    | "Unread"
     | "Pending Approval"
     | "Awaiting Input"
     | "Plan Ready";
@@ -45,6 +46,7 @@ const THREAD_STATUS_PRIORITY: Record<ThreadStatusPill["label"], number> = {
   Connecting: 3,
   "Plan Ready": 2,
   Completed: 1,
+  Unread: 1,
 };
 
 type ThreadStatusInput = Pick<
@@ -57,6 +59,7 @@ type ThreadStatusInput = Pick<
   | "session"
 > & {
   lastVisitedAt?: string | undefined;
+  updatedAt?: string | undefined;
 };
 
 export interface ThreadJumpHintVisibilityController {
@@ -153,6 +156,17 @@ export function hasUnseenCompletion(thread: ThreadStatusInput): boolean {
   const lastVisitedAt = Date.parse(thread.lastVisitedAt);
   if (Number.isNaN(lastVisitedAt)) return true;
   return completedAt > lastVisitedAt;
+}
+
+export function hasUnseenThreadUpdate(thread: ThreadStatusInput): boolean {
+  if (!thread.updatedAt) return false;
+  const updatedAt = Date.parse(thread.updatedAt);
+  if (Number.isNaN(updatedAt)) return false;
+  if (!thread.lastVisitedAt) return false;
+
+  const lastVisitedAt = Date.parse(thread.lastVisitedAt);
+  if (Number.isNaN(lastVisitedAt)) return true;
+  return updatedAt > lastVisitedAt;
 }
 
 export function shouldClearThreadSelectionOnMouseDown(target: HTMLElement | null): boolean {
@@ -404,6 +418,15 @@ export function resolveThreadStatusPill(input: {
   if (hasUnseenCompletion(thread)) {
     return {
       label: "Completed",
+      colorClass: "text-emerald-600 dark:text-emerald-300/90",
+      dotClass: "bg-emerald-500 dark:bg-emerald-300/90",
+      pulse: false,
+    };
+  }
+
+  if (hasUnseenThreadUpdate(thread)) {
+    return {
+      label: "Unread",
       colorClass: "text-emerald-600 dark:text-emerald-300/90",
       dotClass: "bg-emerald-500 dark:bg-emerald-300/90",
       pulse: false,

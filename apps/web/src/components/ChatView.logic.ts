@@ -102,9 +102,11 @@ export function resolveActiveThreadAutoVisit(input: {
   }
 
   const completedAtMs = input.latestTurnCompletedAt ? Date.parse(input.latestTurnCompletedAt) : NaN;
-  const unreadVisitedAt = Number.isFinite(completedAtMs)
-    ? new Date(completedAtMs - 1).toISOString()
-    : null;
+  const unreadVisitedAts = new Set<string>();
+  if (Number.isFinite(completedAtMs)) {
+    unreadVisitedAts.add(new Date(completedAtMs - 1).toISOString());
+  }
+  unreadVisitedAts.add(new Date(visitAtMs - 1).toISOString());
   const previous = input.previousState;
   const previousMatchesTurn =
     previous?.threadKey === input.threadKey &&
@@ -112,8 +114,8 @@ export function resolveActiveThreadAutoVisit(input: {
   let suppressedUnreadVisitedAt = previousMatchesTurn ? previous.suppressedUnreadVisitedAt : null;
 
   if (previousMatchesTurn && previous.lastVisitedAt !== input.lastVisitedAt) {
-    if (unreadVisitedAt !== null && input.lastVisitedAt === unreadVisitedAt) {
-      suppressedUnreadVisitedAt = unreadVisitedAt;
+    if (input.lastVisitedAt !== undefined && unreadVisitedAts.has(input.lastVisitedAt)) {
+      suppressedUnreadVisitedAt = input.lastVisitedAt;
     } else if (input.lastVisitedAt !== suppressedUnreadVisitedAt) {
       suppressedUnreadVisitedAt = null;
     }

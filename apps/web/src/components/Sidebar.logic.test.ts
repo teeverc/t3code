@@ -8,6 +8,7 @@ import {
   getVisibleThreadsForProject,
   getProjectSortTimestamp,
   hasUnseenCompletion,
+  hasUnseenThreadUpdate,
   isContextMenuPointerDown,
   isTrailingDoubleClick,
   orderItemsByPreferredIds,
@@ -75,6 +76,38 @@ describe("hasUnseenCompletion", () => {
         latestTurn: makeLatestTurn(),
         lastVisitedAt: undefined,
         session: null,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("hasUnseenThreadUpdate", () => {
+  it("returns true when a thread was updated after its last visit", () => {
+    expect(
+      hasUnseenThreadUpdate({
+        hasActionableProposedPlan: false,
+        hasPendingApprovals: false,
+        hasPendingUserInput: false,
+        interactionMode: "default",
+        latestTurn: makeLatestTurn({ completedAt: null }),
+        lastVisitedAt: "2026-03-09T10:04:00.000Z",
+        session: null,
+        updatedAt: "2026-03-09T10:05:00.000Z",
+      }),
+    ).toBe(true);
+  });
+
+  it("treats a missing client visit marker as read", () => {
+    expect(
+      hasUnseenThreadUpdate({
+        hasActionableProposedPlan: false,
+        hasPendingApprovals: false,
+        hasPendingUserInput: false,
+        interactionMode: "default",
+        latestTurn: makeLatestTurn({ completedAt: null }),
+        lastVisitedAt: undefined,
+        session: null,
+        updatedAt: "2026-03-09T10:05:00.000Z",
       }),
     ).toBe(false);
   });
@@ -622,6 +655,25 @@ describe("resolveThreadStatusPill", () => {
         },
       }),
     ).toMatchObject({ label: "Completed", pulse: false });
+  });
+
+  it("shows unread for a marked-unread thread without a completed turn", () => {
+    expect(
+      resolveThreadStatusPill({
+        thread: {
+          ...baseThread,
+          interactionMode: "default",
+          latestTurn: null,
+          lastVisitedAt: "2026-03-09T10:04:59.999Z",
+          session: {
+            ...baseThread.session,
+            status: "ready",
+            activeTurnId: null,
+          },
+          updatedAt: "2026-03-09T10:05:00.000Z",
+        },
+      }),
+    ).toMatchObject({ label: "Unread", pulse: false });
   });
 });
 

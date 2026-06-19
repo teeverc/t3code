@@ -345,6 +345,26 @@ describe("resolveActiveThreadAutoVisit", () => {
     expect(stillActive.shouldMarkVisited).toBe(false);
   });
 
+  it("does not immediately clear a generic manual unread action", () => {
+    const updateUnreadVisitedAt = "2026-02-25T12:30:59.999Z";
+    const result = resolveActiveThreadAutoVisit({
+      previousState: {
+        threadKey,
+        visitAt,
+        latestTurnCompletedAt: null,
+        lastVisitedAt: visitAt,
+        suppressedUnreadVisitedAt: null,
+      },
+      threadKey,
+      visitAt,
+      latestTurnCompletedAt: null,
+      lastVisitedAt: updateUnreadVisitedAt,
+    });
+
+    expect(result.shouldMarkVisited).toBe(false);
+    expect(result.nextState?.suppressedUnreadVisitedAt).toBe(updateUnreadVisitedAt);
+  });
+
   it("does not mark visited when the latest update is already read", () => {
     const result = resolveActiveThreadAutoVisit({
       previousState: null,
