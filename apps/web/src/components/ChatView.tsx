@@ -216,6 +216,8 @@ import {
   deriveLockedProvider,
   readFileAsDataUrl,
   reconcileMountedTerminalThreadIds,
+  resolveActiveThreadAutoVisit,
+  type ActiveThreadAutoVisitState,
   resolveSendEnvMode,
   revokeBlobPreviewUrl,
   revokeUserMessagePreviewUrls,
@@ -1023,6 +1025,9 @@ function ChatViewContent(props: ChatViewProps) {
     routeKind === "server" ? routeThreadRef : props.draftId;
   const serverThread = useThread(routeKind === "server" ? routeThreadRef : null);
   const markThreadVisited = useUiStateStore((store) => store.markThreadVisited);
+  // Tracks only the currently rendered thread so a manual "Mark unread" is not
+  // immediately cleared by the active-view auto-read effect below.
+  const activeThreadAutoVisitStateRef = useRef<ActiveThreadAutoVisitState | null>(null);
   const activeThreadLastVisitedAt = useUiStateStore((store) =>
     routeKind === "server" ? store.threadLastVisitedAtById[routeThreadKey] : undefined,
   );
@@ -1562,17 +1567,25 @@ function ChatViewContent(props: ChatViewProps) {
   );
 
   useEffect(() => {
-    if (!serverThread?.id) return;
-    const threadUpdatedAt = Date.parse(serverThread.updatedAt);
-    if (Number.isNaN(threadUpdatedAt)) return;
-    const lastVisitedAt = activeThreadLastVisitedAt ? Date.parse(activeThreadLastVisitedAt) : NaN;
-    if (!Number.isNaN(lastVisitedAt) && lastVisitedAt >= threadUpdatedAt) return;
+    const activeServerThreadKey = serverThread?.id
+      ? scopedThreadKey(scopeThreadRef(serverThread.environmentId, serverThread.id))
+      : null;
+    const autoVisit = resolveActiveThreadAutoVisit({
+      previousState: activeThreadAutoVisitStateRef.current,
+      threadKey: activeServerThreadKey,
+      visitAt: serverThread?.updatedAt,
+      latestTurnCompletedAt: activeLatestTurn?.completedAt,
+      lastVisitedAt: activeThreadLastVisitedAt,
+    });
+    activeThreadAutoVisitStateRef.current = autoVisit.nextState;
 
-    markThreadVisited(
-      scopedThreadKey(scopeThreadRef(serverThread.environmentId, serverThread.id)),
-      serverThread.updatedAt,
-    );
+    if (!autoVisit.shouldMarkVisited || !activeServerThreadKey || !serverThread?.updatedAt) {
+      return;
+    }
+
+    markThreadVisited(activeServerThreadKey, serverThread.updatedAt);
   }, [
+    activeLatestTurn?.completedAt,
     activeThreadLastVisitedAt,
     markThreadVisited,
     serverThread?.environmentId,

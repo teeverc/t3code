@@ -74,6 +74,78 @@ export function shouldWriteThreadErrorToCurrentServerThread(input: {
   );
 }
 
+export interface ActiveThreadAutoVisitState {
+  readonly threadKey: string;
+  readonly visitAt: string;
+  readonly latestTurnCompletedAt: string | null | undefined;
+  readonly lastVisitedAt: string | undefined;
+  readonly suppressedUnreadVisitedAt: string | null;
+}
+
+export function resolveActiveThreadAutoVisit(input: {
+  readonly previousState: ActiveThreadAutoVisitState | null;
+  readonly threadKey: string | null;
+  readonly visitAt: string | null | undefined;
+  readonly latestTurnCompletedAt: string | null | undefined;
+  readonly lastVisitedAt: string | undefined;
+}): {
+  readonly nextState: ActiveThreadAutoVisitState | null;
+  readonly shouldMarkVisited: boolean;
+} {
+  if (!input.threadKey || !input.visitAt) {
+    return { nextState: null, shouldMarkVisited: false };
+  }
+
+  const visitAtMs = Date.parse(input.visitAt);
+  if (Number.isNaN(visitAtMs)) {
+    return { nextState: null, shouldMarkVisited: false };
+  }
+
+  const completedAtMs = input.latestTurnCompletedAt ? Date.parse(input.latestTurnCompletedAt) : NaN;
+  const unreadVisitedAt = Number.isFinite(completedAtMs)
+    ? new Date(completedAtMs - 1).toISOString()
+    : null;
+  const previous = input.previousState;
+  const previousMatchesTurn =
+    previous?.threadKey === input.threadKey &&
+    previous.latestTurnCompletedAt === input.latestTurnCompletedAt;
+  let suppressedUnreadVisitedAt = previousMatchesTurn ? previous.suppressedUnreadVisitedAt : null;
+
+  if (previousMatchesTurn && previous.lastVisitedAt !== input.lastVisitedAt) {
+    const previousVisitedAtMs = previous.lastVisitedAt ? Date.parse(previous.lastVisitedAt) : NaN;
+    if (
+      unreadVisitedAt !== null &&
+      Number.isFinite(previousVisitedAtMs) &&
+      Number.isFinite(completedAtMs) &&
+      previousVisitedAtMs >= completedAtMs &&
+      input.lastVisitedAt === unreadVisitedAt
+    ) {
+      suppressedUnreadVisitedAt = unreadVisitedAt;
+    } else if (input.lastVisitedAt !== suppressedUnreadVisitedAt) {
+      suppressedUnreadVisitedAt = null;
+    }
+  }
+
+  const nextState: ActiveThreadAutoVisitState = {
+    threadKey: input.threadKey,
+    visitAt: input.visitAt,
+    latestTurnCompletedAt: input.latestTurnCompletedAt,
+    lastVisitedAt: input.lastVisitedAt,
+    suppressedUnreadVisitedAt,
+  };
+
+  if (suppressedUnreadVisitedAt && input.lastVisitedAt === suppressedUnreadVisitedAt) {
+    return { nextState, shouldMarkVisited: false };
+  }
+
+  const lastVisitedAtMs = input.lastVisitedAt ? Date.parse(input.lastVisitedAt) : NaN;
+  if (Number.isFinite(lastVisitedAtMs) && lastVisitedAtMs >= visitAtMs) {
+    return { nextState, shouldMarkVisited: false };
+  }
+
+  return { nextState, shouldMarkVisited: true };
+}
+
 export function reconcileMountedTerminalThreadIds(input: {
   currentThreadIds: ReadonlyArray<string>;
   openThreadIds: ReadonlyArray<string>;

@@ -12,6 +12,7 @@ import {
   hasServerAcknowledgedLocalDispatch,
   reconcileMountedTerminalThreadIds,
   reconcileRetainedMountedThreadIds,
+  resolveActiveThreadAutoVisit,
   resolveSendEnvMode,
   shouldWriteThreadErrorToCurrentServerThread,
 } from "./ChatView.logic";
@@ -226,6 +227,115 @@ describe("resolveSendEnvMode", () => {
   it("keeps worktree mode only for git repositories", () => {
     expect(resolveSendEnvMode({ requestedEnvMode: "worktree", isGitRepo: true })).toBe("worktree");
     expect(resolveSendEnvMode({ requestedEnvMode: "worktree", isGitRepo: false })).toBe("local");
+  });
+});
+
+describe("resolveActiveThreadAutoVisit", () => {
+  const threadKey = "environment-local:thread-1";
+  const completedAt = "2026-02-25T12:30:00.000Z";
+  const visitAt = "2026-02-25T12:31:00.000Z";
+  const unreadVisitedAt = "2026-02-25T12:29:59.999Z";
+
+  it("marks an unread active thread visited when it is opened", () => {
+    const result = resolveActiveThreadAutoVisit({
+      previousState: null,
+      threadKey,
+      visitAt,
+      latestTurnCompletedAt: completedAt,
+      lastVisitedAt: unreadVisitedAt,
+    });
+
+    expect(result.shouldMarkVisited).toBe(true);
+  });
+
+  it("does not immediately clear a manual unread action on the already-active thread", () => {
+    const result = resolveActiveThreadAutoVisit({
+      previousState: {
+        threadKey,
+        visitAt,
+        latestTurnCompletedAt: completedAt,
+        lastVisitedAt: visitAt,
+        suppressedUnreadVisitedAt: null,
+      },
+      threadKey,
+      visitAt,
+      latestTurnCompletedAt: completedAt,
+      lastVisitedAt: unreadVisitedAt,
+    });
+
+    expect(result.shouldMarkVisited).toBe(false);
+    expect(result.nextState?.suppressedUnreadVisitedAt).toBe(unreadVisitedAt);
+  });
+
+  it("clears manual unread after leaving and re-entering the thread", () => {
+    const suppressed = resolveActiveThreadAutoVisit({
+      previousState: {
+        threadKey,
+        visitAt,
+        latestTurnCompletedAt: completedAt,
+        lastVisitedAt: visitAt,
+        suppressedUnreadVisitedAt: null,
+      },
+      threadKey,
+      visitAt,
+      latestTurnCompletedAt: completedAt,
+      lastVisitedAt: unreadVisitedAt,
+    });
+    const leftThread = resolveActiveThreadAutoVisit({
+      previousState: suppressed.nextState,
+      threadKey: null,
+      visitAt,
+      latestTurnCompletedAt: completedAt,
+      lastVisitedAt: undefined,
+    });
+    const reentered = resolveActiveThreadAutoVisit({
+      previousState: leftThread.nextState,
+      threadKey,
+      visitAt,
+      latestTurnCompletedAt: completedAt,
+      lastVisitedAt: unreadVisitedAt,
+    });
+
+    expect(suppressed.shouldMarkVisited).toBe(false);
+    expect(leftThread.nextState).toBeNull();
+    expect(reentered.shouldMarkVisited).toBe(true);
+  });
+
+  it("keeps manual unread suppressed while staying on the active thread", () => {
+    const suppressed = resolveActiveThreadAutoVisit({
+      previousState: {
+        threadKey,
+        visitAt,
+        latestTurnCompletedAt: completedAt,
+        lastVisitedAt: visitAt,
+        suppressedUnreadVisitedAt: null,
+      },
+      threadKey,
+      visitAt,
+      latestTurnCompletedAt: completedAt,
+      lastVisitedAt: unreadVisitedAt,
+    });
+    const stillActive = resolveActiveThreadAutoVisit({
+      previousState: suppressed.nextState,
+      threadKey,
+      visitAt: "2026-02-25T12:31:30.000Z",
+      latestTurnCompletedAt: completedAt,
+      lastVisitedAt: unreadVisitedAt,
+    });
+
+    expect(stillActive.shouldMarkVisited).toBe(false);
+  });
+
+  it("does not mark visited when the latest update is already read", () => {
+    const result = resolveActiveThreadAutoVisit({
+      previousState: null,
+      threadKey,
+      visitAt,
+      latestTurnCompletedAt: completedAt,
+      lastVisitedAt: visitAt,
+    });
+
+    expect(result.shouldMarkVisited).toBe(false);
   });
 });
 
