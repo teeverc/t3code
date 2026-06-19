@@ -112,14 +112,7 @@ export function resolveActiveThreadAutoVisit(input: {
   let suppressedUnreadVisitedAt = previousMatchesTurn ? previous.suppressedUnreadVisitedAt : null;
 
   if (previousMatchesTurn && previous.lastVisitedAt !== input.lastVisitedAt) {
-    const previousVisitedAtMs = previous.lastVisitedAt ? Date.parse(previous.lastVisitedAt) : NaN;
-    if (
-      unreadVisitedAt !== null &&
-      Number.isFinite(previousVisitedAtMs) &&
-      Number.isFinite(completedAtMs) &&
-      previousVisitedAtMs >= completedAtMs &&
-      input.lastVisitedAt === unreadVisitedAt
-    ) {
+    if (unreadVisitedAt !== null && input.lastVisitedAt === unreadVisitedAt) {
       suppressedUnreadVisitedAt = unreadVisitedAt;
     } else if (input.lastVisitedAt !== suppressedUnreadVisitedAt) {
       suppressedUnreadVisitedAt = null;

@@ -267,6 +267,25 @@ describe("resolveActiveThreadAutoVisit", () => {
     expect(result.nextState?.suppressedUnreadVisitedAt).toBe(unreadVisitedAt);
   });
 
+  it("does not immediately clear a manual unread action before first auto-read finishes", () => {
+    const result = resolveActiveThreadAutoVisit({
+      previousState: {
+        threadKey,
+        visitAt,
+        latestTurnCompletedAt: completedAt,
+        lastVisitedAt: undefined,
+        suppressedUnreadVisitedAt: null,
+      },
+      threadKey,
+      visitAt,
+      latestTurnCompletedAt: completedAt,
+      lastVisitedAt: unreadVisitedAt,
+    });
+
+    expect(result.shouldMarkVisited).toBe(false);
+    expect(result.nextState?.suppressedUnreadVisitedAt).toBe(unreadVisitedAt);
+  });
+
   it("clears manual unread after leaving and re-entering the thread", () => {
     const suppressed = resolveActiveThreadAutoVisit({
       previousState: {
