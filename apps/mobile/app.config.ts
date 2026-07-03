@@ -42,7 +42,7 @@ const VARIANT_CONFIG: Record<
     scheme: "t3code-preview",
     iosIcon: "./assets/icon-composer-prod.icon",
     iosBundleIdentifier: "com.t3tools.t3code.preview",
-    androidPackage: "com.t3tools.t3code.preview",
+    androidPackage: "com.teever.t3code.preview",
     relyingParty: "clerk.t3.codes",
   },
   production: {
@@ -102,10 +102,7 @@ const config: ExpoConfig = {
   icon: "./assets/icon.png",
   userInterfaceStyle: "automatic",
   updates: {
-    enabled: true,
-    url: "https://u.expo.dev/d763fcb8-d37c-41ea-a773-b54a0ab4a454",
-    checkAutomatically: "ON_LOAD",
-    fallbackToCacheTimeout: 0,
+    enabled: false,
   },
   ios: {
     icon: variant.iosIcon,
@@ -239,10 +236,10 @@ const config: ExpoConfig = {
       tracesToken: repoEnv.EXPO_PUBLIC_OTLP_TRACES_TOKEN ?? null,
     },
     eas: {
-      projectId: "d763fcb8-d37c-41ea-a773-b54a0ab4a454",
+      projectId: "ce8b15a1-cfcd-453f-8e85-82c5801b875c",
     },
   },
-  owner: "pingdotgg",
+  owner: "teever",
 };
 
 export default config;
